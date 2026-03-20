@@ -32,7 +32,7 @@ function App() {
              </PrivateRoute>
           } />
 
-          <Route path="/resume-filtering" element={
+          <Route path="/resume-screening" element={
              <PrivateRoute>
                <ResumeScreening />
              </PrivateRoute>

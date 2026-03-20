@@ -26,7 +26,8 @@ const ResumeScreening = () => {
     
     try {
       const res = await api.post('/resume/analyze', formData, {
-        headers: { 'Content-Type': 'multipart/form-data' }
+        headers: { 'Content-Type': 'multipart/form-data' },
+        timeout: 25000 // 25 seconds timeout to catch it before Render's 30s limit
       });
       setResults(res.data);
     } catch (err) {

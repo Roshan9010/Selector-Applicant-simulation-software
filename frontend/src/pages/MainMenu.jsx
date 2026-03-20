@@ -49,7 +49,7 @@ const MainMenu = () => {
           <div 
             className="glass-panel" 
             style={{ cursor: 'pointer', textAlign: 'center', padding: '4rem 2rem', transition: 'transform 0.3s ease' }}
-            onClick={() => navigate('/resume-filtering')}
+            onClick={() => navigate('/resume-screening')}
           >
             <div style={{ fontSize: '4rem', marginBottom: '1.5rem' }}>📄</div>
             <h2 style={{ fontSize: '1.75rem', marginBottom: '1rem', color: 'var(--text-main)' }}>Resume Filtering</h2>

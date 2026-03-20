@@ -7,6 +7,7 @@ import os
 import io
 from concurrent.futures import ThreadPoolExecutor
 import asyncio
+from fastapi.concurrency import run_in_threadpool
 
 try:
     import PyPDF2
@@ -55,97 +56,100 @@ async def process_single_resume(file: UploadFile, required_skills: List[str], ex
     if filename_lower.endswith(".zip") or filename_lower.endswith(".rar"):
         return None # Skip archives
         
-    text = ""
+    # Read content once asynchronously
     try:
         content = await file.read()
-        
-        if filename_lower.endswith(".pdf"):
-            reader = PyPDF2.PdfReader(io.BytesIO(content))
-            for page in reader.pages:
-                text += page.extract_text() or ""
-                
-        elif filename_lower.endswith(".docx"):
-            try:
-                doc = docx.Document(io.BytesIO(content))
-                text = "\n".join([para.text for para in doc.paragraphs])
-            except Exception:
-                text = content.decode("utf-8", errors="ignore")
-                
-        elif filename_lower.endswith(".csv"):
-            try:
-                df_csv = pd.read_csv(io.BytesIO(content))
-                text = df_csv.to_string()
-            except Exception:
-                text = content.decode("utf-8", errors="ignore")
-                
-        else:
-            # Fallback for ANY arbitrary type (doc, txt, rtf, code blocks, etc.)
-            text = content.decode("utf-8", errors="ignore")
-            if not text.strip():
-                # Ultimate binary bypass, strip everything to standard latin 1
-                text = content.decode("latin-1", errors="ignore")
-                
     except Exception as e:
-        return None
-        
-    if not text.strip():
+        logger.error(f"Failed to read file {file.filename}: {str(e)}")
         return None
 
-    cleaned = clean_text(text)
-    vector = tfidf.transform([cleaned])
-    
-    distances, indices = nn_model.kneighbors(vector)
-    match_distance = distances[0][0]
-    best_match_idx = indices[0][0]
-    matched_category = resumes_df.iloc[best_match_idx]['Category']
+    def sync_logic():
+        try:
+            text = ""
+            if filename_lower.endswith(".pdf"):
+                reader = PyPDF2.PdfReader(io.BytesIO(content))
+                for page in reader.pages:
+                    text += page.extract_text() or ""
+                    
+            elif filename_lower.endswith(".docx"):
+                try:
+                    doc = docx.Document(io.BytesIO(content))
+                    text = "\n".join([para.text for para in doc.paragraphs])
+                except Exception:
+                    text = content.decode("utf-8", errors="ignore")
+                    
+            elif filename_lower.endswith(".csv"):
+                try:
+                    df_csv = pd.read_csv(io.BytesIO(content))
+                    text = df_csv.to_string()
+                except Exception:
+                    text = content.decode("utf-8", errors="ignore")
+            else:
+                text = content.decode("utf-8", errors="ignore")
+                if not text.strip():
+                    text = content.decode("latin-1", errors="ignore")
+                    
+            if not text.strip():
+                return None
 
-    # Mathematical heuristic mapping Cosine Distance (typically 0.4 - 0.9) to an ATS percentage 40 - 95
-    ats_score = max(0.0, min(100.0, (1.0 - (match_distance * 0.45)) * 100))
-    
-    # Custom logic for scoring based on matching details
-    bonus = 0.0
-    details_feedback = []
-    
-    if required_skills:
-        matched_skills = [s for s in required_skills if s in text.lower()]
-        if len(matched_skills) < len(required_skills):
-            return None # Skip if not all skills found
-        bonus += 15.0 
-        details_feedback.append(f"Matched All Skills: {', '.join(matched_skills)}")
+            cleaned = clean_text(text)
+            vector = tfidf.transform([cleaned])
             
-    # Regex heuristics for Experience extraction
-    extracted_exp_match = re.search(r'(?i)([0-9]+(?:\.[0-9]+)?)\+?\s*(?:years|yrs)\s*(?:of\s*)?experience', text)
-    
-    if experience > 0.0:
-        if extracted_exp_match:
-            extracted_exp = float(extracted_exp_match.group(1))
-            if extracted_exp < experience:
-                return None # Skip if experience too low
-            bonus += 10.0
-            details_feedback.append(f"Meets Experience ({extracted_exp} yrs)")
-        else:
-            # Experience requested but none found in standard format
-            return None # Skip if experience mandatory but not found
-            
-    # Email Extraction
-    email_match = re.search(r'[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}', text)
-    extracted_email = email_match.group(0) if email_match else "Not found"
-            
-    final_score = min(100.0, ats_score + bonus)
-    
-    feedback_str = (
-        f"Analyzed {len(text.split())} words. "
-        f"Matches '{matched_category}' sector. "
-        f"Criteria Check: {'; '.join(details_feedback) if details_feedback else 'None'}"
-    )
+            distances, indices = nn_model.kneighbors(vector)
+            match_distance = distances[0][0]
+            best_match_idx = indices[0][0]
+            matched_category = resumes_df.iloc[best_match_idx]['Category']
 
-    return {
-        "filename": file.filename,
-        "email": extracted_email,
-        "score": round(final_score, 1),
-        "feedback": feedback_str,
-        "inferred_category": matched_category
-    }
+            # ATS Score Calculation
+            ats_score = max(0.0, min(100.0, (1.0 - (match_distance * 0.45)) * 100))
+            
+            bonus = 0.0
+            details_feedback = []
+            
+            if required_skills:
+                matched_skills = [s for s in required_skills if s in text.lower()]
+                if len(matched_skills) < len(required_skills):
+                    return None
+                bonus += 15.0 
+                details_feedback.append(f"Matched All Skills: {', '.join(matched_skills)}")
+                    
+            # Experience Extraction
+            extracted_exp_match = re.search(r'(?i)([0-9]+(?:\.[0-9]+)?)\+?\s*(?:years|yrs)\s*(?:of\s*)?experience', text)
+            if experience > 0.0:
+                if extracted_exp_match:
+                    extracted_exp = float(extracted_exp_match.group(1))
+                    if extracted_exp < experience:
+                        return None
+                    bonus += 10.0
+                    details_feedback.append(f"Meets Experience ({extracted_exp} yrs)")
+                else:
+                    return None
+                    
+            # Email Extraction
+            email_match = re.search(r'[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}', text)
+            extracted_email = email_match.group(0) if email_match else "Not found"
+                    
+            final_score = min(100.0, ats_score + bonus)
+            
+            feedback_str = (
+                f"Analyzed {len(text.split())} words. "
+                f"Matches '{matched_category}' sector. "
+                f"Criteria Check: {'; '.join(details_feedback) if details_feedback else 'None'}"
+            )
+
+            return {
+                "filename": file.filename,
+                "email": extracted_email,
+                "score": round(final_score, 1),
+                "feedback": feedback_str,
+                "inferred_category": matched_category
+            }
+        except Exception as e:
+            logger.error(f"Error in sync match logic for {file.filename}: {str(e)}")
+            return None
+
+    # Offload the heavy parsing and ML to a threadpool
+    return await run_in_threadpool(sync_logic)
 
 @router.post("/analyze")
 async def analyze_resumes(
