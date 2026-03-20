@@ -1,7 +1,5 @@
 import os
 import hashlib
-import cv2
-import mediapipe as mp
 import librosa
 import numpy as np
 
@@ -29,13 +27,21 @@ def analyze_video_file(file_path: str):
 def analyze_audio_file(file_path: str):
     """
     Uses Librosa to extract actual pitch variation dynamically.
+    Optimized for performance with downsampling and sparse analysis.
     """
     try:
-        y, sr = librosa.load(file_path, sr=None)
+        # Load audio with a fixed lower sampling rate to speed up processing
+        # sr=16000 is sufficient for pitch detection in speech
+        y, sr = librosa.load(file_path, sr=16000, mono=True)
         
         # Extract Pitch (Fundamental Frequency - F0)
-        f0, voiced_flag, voiced_probs = librosa.pyin(
-            y, fmin=librosa.note_to_hz('C2'), fmax=librosa.note_to_hz('C7')
+        # Optimized: Increased hop_length (512 -> 1024) to reduce computation frames
+        f0 = librosa.yin(
+            y, 
+            fmin=librosa.note_to_hz('C2'), 
+            fmax=librosa.note_to_hz('C7'),
+            sr=sr,
+            hop_length=1024
         )
         
         valid_f0 = f0[~np.isnan(f0)]

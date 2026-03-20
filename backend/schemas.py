@@ -19,3 +19,14 @@ class Token(BaseModel):
     user_id: int
     username: str
     role: str
+
+class ReportResponse(BaseModel):
+    id: int
+    user_id: int
+    domain: str
+    overall_score: float
+    facial_feedback: str
+    vocal_feedback: str
+    
+    class Config:
+        orm_mode = True
