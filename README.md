@@ -75,3 +75,21 @@ If you want to see the underlying ML logic in isolation:
 - **/frontend**: React application components and styling.
 - **/backend**: FastAPI routes, ML services, and database schemas.
 - **/sample_resumes**: Test documents for the Resume Filtering module.
+
+---
+
+## 🌐 Deployment (Live Link)
+
+### 1. Frontend (Vercel)
+- **Repo Connection**: Go to [Vercel](https://vercel.com/new), import this repository, and select the `frontend` directory as the project root.
+- **Framework Preset**: Select **Vite**.
+- **Environment Variables**: Add a new variable:
+  - **Key**: `VITE_API_URL`
+  - **Value**: Your deployed backend URL (e.g., `https://your-backend.onrender.com`)
+- **Deploy**: Click deploy and your live link will be generated!
+
+### 2. Backend (Render / Railway)
+- **Repo Connection**: Connect the repository and select the `backend` directory.
+- **Runtime**: Python.
+- **Build Command**: `pip install -r requirements.txt` (or manually install dependencies).
+- **Start Command**: `python -m uvicorn main:app --host 0.0.0.0 --port $PORT`

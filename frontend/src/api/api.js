@@ -1,8 +1,8 @@
 import axios from 'axios';
 
 const api = axios.create({
-  // Point to the FastAPI backend
-  baseURL: 'http://localhost:8000',
+  // Use environment variable for production, fallback to localhost for development
+  baseURL: import.meta.env.VITE_API_URL || 'http://localhost:8000',
 });
 
 // Request interceptor to attach JWT token to all requests
