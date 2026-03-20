@@ -1,0 +1,34 @@
+# Dependency directories
+node_modules/
+venv/
+env/
+.env
+
+# Python build/cache
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.pytest_cache/
+
+# Databases
+*.db
+*.sqlite3
+applicant_sim.db
+
+# OS Files
+.DS_Store
+Thumbs.db
+
+# IDEs
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# Build output
+dist/
+build/
+.next/
+.serverless/
+out/

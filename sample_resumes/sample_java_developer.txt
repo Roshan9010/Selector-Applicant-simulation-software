@@ -1,0 +1,19 @@
+ALICE SMITH
+Location: Austin, TX
+Email: alice.smith@email.com
+
+PROFESSIONAL SUMMARY:
+Dedicated Java Developer with 4+ years of experience in enterprise software development. Expert in building scalable microservices using Spring Boot, Hibernate, and RESTful APIs.
+
+EXPERIENCE:
+Backend Software Engineer - Tech Solutions LLC (2019 - Present)
+- Architected a distributed transaction processing system utilizing Java 11 and Spring Boot, handling 10k requests per second.
+- Managed database schemas and optimized SQL queries in PostgreSQL and Oracle databases.
+- Deployed scalable infrastructure using Docker and Kubernetes.
+- Integrated CI/CD pipelines leveraging Jenkins and Git.
+
+SKILLS:
+Java, Spring Boot, Hibernate, SQL, Microservices, Docker, Kubernetes, Maven, Git, RESTful APIs, JUnit, AWS.
+
+EDUCATION:
+Bachelor of Science in Software Engineering - University of Texas
