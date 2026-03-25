@@ -9,6 +9,8 @@ const ResumeScreening = () => {
   const [experience, setExperience] = useState("");
   const [analyzing, setAnalyzing] = useState(false);
   const [results, setResults] = useState(null);
+  const [sendingInvite, setSendingInvite] = useState(false);
+  const [lastInvitationToken, setLastInvitationToken] = useState(null);
 
   const handleUpload = async (e) => {
     e.preventDefault();
@@ -27,14 +29,48 @@ const ResumeScreening = () => {
     try {
       const res = await api.post('/resume/analyze', formData, {
         headers: { 'Content-Type': 'multipart/form-data' },
-        timeout: 25000 // 25 seconds timeout to catch it before Render's 30s limit
+        timeout: 120000 // 2 minutes timeout for large batches
       });
       setResults(res.data);
     } catch (err) {
       console.error(err);
-      alert("Error analyzing resumes. Make sure they are valid documents.");
+      const errorMsg = err.response?.data?.detail || "Error analyzing resumes. Make sure they are valid documents.";
+      alert(errorMsg);
     } finally {
       setAnalyzing(false);
+    }
+  };
+
+  const handleSendInvitation = async (candidateEmail, candidateFilename) => {
+    const domain = prompt("Enter interview domain (e.g., Python, Java, ML):", "Python");
+    if (!domain) return;
+    
+    const candidateName = prompt("Enter candidate name:", candidateFilename.split('.')[0]);
+    if (!candidateName) return;
+    
+    setSendingInvite(true);
+    try {
+      const formData = new FormData();
+      formData.append('candidate_email', candidateEmail);
+      formData.append('candidate_name', candidateName);
+      formData.append('domain', domain);
+      
+      const res = await api.post('/questions/create-invitation', formData, {
+        headers: { 'Content-Type': 'multipart/form-data' }
+      });
+      
+      const inviteLink = res.data.invitation_link;
+      const token = res.data.token;
+      
+      // Copy link to clipboard
+      navigator.clipboard.writeText(inviteLink);
+      setLastInvitationToken(token);
+      alert(`Invitation link created and copied to clipboard!\n\nLink: ${inviteLink}\n\nYou can now email this link to the candidate.\n\nTrack status at: http://localhost:5173/invitation-status?token=${token}`);
+    } catch (err) {
+      console.error(err);
+      alert("Failed to create invitation. Please try again.");
+    } finally {
+      setSendingInvite(false);
     }
   };
 
@@ -200,7 +236,16 @@ const ResumeScreening = () => {
                      </span>
                   </div>
 
-                  <div style={{ padding: '1rem', background: 'rgba(255,255,255,0.03)', borderRadius: '10px', border: '1px solid rgba(255,255,255,0.05)' }}>
+                  <button 
+                    className="btn btn-primary" 
+                    onClick={() => handleSendInvitation(cand.email, cand.filename)}
+                    disabled={sendingInvite}
+                    style={{ width: '100%', marginTop: '1rem' }}
+                  >
+                    {sendingInvite ? 'Creating Link...' : '📧 Send Interview Invitation'}
+                  </button>
+
+                  <div style={{ padding: '1rem', background: 'rgba(255,255,255,0.03)', borderRadius: '10px', border: '1px solid rgba(255,255,255,0.05)', marginTop: '1rem' }}>
                     <p style={{ fontSize: '0.9rem', color: 'var(--text-muted)', lineHeight: '1.6' }}>
                       <span style={{ color: 'var(--text-main)', fontWeight: '600' }}>Analysis Feed: </span>
                       {cand.feedback}

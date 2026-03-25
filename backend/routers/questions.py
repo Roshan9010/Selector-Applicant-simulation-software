@@ -1,7 +1,15 @@
-from fastapi import APIRouter, Depends
+import logging
+from fastapi import APIRouter, Depends, HTTPException, Form
 from sqlalchemy.orm import Session
-from database import get_db
-import models
+from sqlalchemy import func
+from backend.database import get_db
+from backend import models
+import uuid
+import os
+from backend.email_utils import send_email, compose_invitation_email
+
+logger = logging.getLogger("backend.routers.questions")
+logger.debug("backend.routers.questions: import start")
 
 router = APIRouter(prefix="/questions", tags=["questions"])
 
@@ -135,3 +143,105 @@ def get_questions_by_domain(domain: str, db: Session = Depends(get_db)):
     
     db.commit()
     return db.query(models.Question).filter(models.Question.domain == domain).limit(10).all()
+
+@router.post("/create-invitation")
+def create_interview_invitation(
+    candidate_email: str = Form(...),
+    candidate_name: str = Form(...),
+    domain: str = Form(...),
+    db: Session = Depends(get_db)
+):
+    """Create an interview invitation link for a candidate"""
+    try:
+        # Generate unique token
+        token = str(uuid.uuid4())
+        
+        # Create invitation record
+        invitation = models.InterviewInvitation(
+            candidate_email=candidate_email,
+            candidate_name=candidate_name,
+            domain=domain,
+            invitation_token=token
+        )
+        
+        db.add(invitation)
+        db.commit()
+        db.refresh(invitation)
+        
+        # Generate invitation link (frontend URL)
+        invitation_link = f"http://localhost:5173/interview/{domain}?token={token}"
+        # Attempt to send email to candidate
+        email_sent = False
+        email_error = None
+        # Compose email via model (if available) or fallback template
+        try:
+            subject, body, html = compose_invitation_email(candidate_name, domain, invitation_link)
+        except Exception:
+            subject = f"Interview Invitation - {domain}"
+            body = f"Hi {candidate_name},\n\nYou have been invited to a {domain} interview. Click the link to start: {invitation_link}\n\nBest regards"
+            html = f"<p>Hi {candidate_name},</p><p>You have been invited to a <strong>{domain}</strong> interview.</p><p><a href=\"{invitation_link}\">Start your interview</a></p><p>Best regards</p>"
+
+        try:
+            send_email(candidate_email, subject, body, html)
+            email_sent = True
+        except Exception as e:
+            # don't fail the whole request for email issues; return info for UI
+            email_error = str(e)
+
+        return {
+            "message": "Invitation created successfully",
+            "invitation_link": invitation_link,
+            "candidate_email": candidate_email,
+            "domain": domain,
+            "token": token,
+            "email_sent": email_sent,
+            "email_error": email_error,
+        }
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Failed to create invitation: {str(e)}")
+
+@router.get("/validate-invitation/{token}")
+def validate_invitation(token: str, db: Session = Depends(get_db)):
+    """Validate an invitation token before allowing the interview"""
+    invitation = db.query(models.InterviewInvitation).filter(
+        models.InterviewInvitation.invitation_token == token
+    ).first()
+    
+    if not invitation:
+        raise HTTPException(status_code=404, detail="Invalid invitation token")
+    
+    if invitation.is_completed:
+        raise HTTPException(status_code=400, detail="This interview has already been completed")
+    
+    # Mark as opened and record timestamp
+    if not invitation.is_opened:
+        invitation.is_opened = True
+        invitation.opened_at = func.now()
+        db.commit()
+    
+    return {
+        "valid": True,
+        "candidate_name": invitation.candidate_name,
+        "domain": invitation.domain,
+        "opened_at": str(invitation.opened_at) if invitation.opened_at else None
+    }
+
+@router.get("/invitations/status/{token}")
+def get_invitation_status(token: str, db: Session = Depends(get_db)):
+    """Get the status of an invitation (for recruiters to track)"""
+    invitation = db.query(models.InterviewInvitation).filter(
+        models.InterviewInvitation.invitation_token == token
+    ).first()
+    
+    if not invitation:
+        raise HTTPException(status_code=404, detail="Invitation not found")
+    
+    return {
+        "candidate_email": invitation.candidate_email,
+        "candidate_name": invitation.candidate_name,
+        "domain": invitation.domain,
+        "is_opened": invitation.is_opened,
+        "opened_at": str(invitation.opened_at) if invitation.opened_at else None,
+        "is_completed": invitation.is_completed,
+        "created_at": str(invitation.created_at)
+    }

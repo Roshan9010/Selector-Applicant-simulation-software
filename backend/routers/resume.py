@@ -1,3 +1,4 @@
+import logging
 from fastapi import APIRouter, UploadFile, File, HTTPException, Form
 from typing import List
 import pickle
@@ -24,6 +25,9 @@ import logging
 # Setup logging
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
+
+logger = logging.getLogger("backend.routers.resume")
+logger.debug("backend.routers.resume: import start")
 
 router = APIRouter(prefix="/resume", tags=["resume"])
 
@@ -108,22 +112,25 @@ async def process_single_resume(file: UploadFile, required_skills: List[str], ex
             
             if required_skills:
                 matched_skills = [s for s in required_skills if s in text.lower()]
-                if len(matched_skills) < len(required_skills):
-                    return None
-                bonus += 15.0 
-                details_feedback.append(f"Matched All Skills: {', '.join(matched_skills)}")
+                if matched_skills:
+                    # Give partial credit for matched skills instead of requiring all
+                    skill_match_pct = len(matched_skills) / len(required_skills)
+                    bonus += (15.0 * skill_match_pct)
+                    if skill_match_pct > 0.3:  # At least 30% skills matched
+                        details_feedback.append(f"Matched Skills ({int(skill_match_pct*100)}%): {', '.join(matched_skills)}")
+                    else:
+                        return None  # Still filter out very poor matches
                     
-            # Experience Extraction
+            # Experience Extraction (more lenient)
             extracted_exp_match = re.search(r'(?i)([0-9]+(?:\.[0-9]+)?)\+?\s*(?:years|yrs)\s*(?:of\s*)?experience', text)
             if experience > 0.0:
                 if extracted_exp_match:
                     extracted_exp = float(extracted_exp_match.group(1))
-                    if extracted_exp < experience:
-                        return None
-                    bonus += 10.0
-                    details_feedback.append(f"Meets Experience ({extracted_exp} yrs)")
-                else:
-                    return None
+                    if extracted_exp >= experience:
+                        bonus += 10.0
+                        details_feedback.append(f"Meets Experience ({extracted_exp} yrs)")
+                    # Don't reject if experience is slightly less - just don't give bonus
+                # If no explicit experience found, still allow the resume through
                     
             # Email Extraction
             email_match = re.search(r'[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}', text)
