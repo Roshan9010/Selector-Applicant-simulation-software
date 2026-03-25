@@ -11,7 +11,7 @@ class UserResponse(BaseModel):
     role: str
 
     class Config:
-        orm_mode = True
+        from_attributes = True
 
 class Token(BaseModel):
     access_token: str
@@ -29,4 +29,4 @@ class ReportResponse(BaseModel):
     vocal_feedback: str
     
     class Config:
-        orm_mode = True
+        from_attributes = True

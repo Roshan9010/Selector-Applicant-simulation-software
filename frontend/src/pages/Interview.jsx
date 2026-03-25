@@ -5,6 +5,7 @@ import api from '../api/api';
 const Interview = () => {
   const { domain } = useParams();
   const navigate = useNavigate();
+  const [urlParams, setUrlParams] = useState({});
 
   const [questions, setQuestions] = useState([]);
   const [currentIdx, setCurrentIdx] = useState(0);
@@ -12,12 +13,35 @@ const Interview = () => {
   const [processing, setProcessing] = useState(false);
   const [mediaStream, setMediaStream] = useState(null);
   const [timeLeft, setTimeLeft] = useState(10 * 60); // 10 minutes timer
+  const [invitationValid, setInvitationValid] = useState(null);
+  const [candidateName, setCandidateName] = useState('');
 
   const videoRef = useRef(null);
   const mediaRecorderRef = useRef(null);
   const chunksRef = useRef([]);
 
   useEffect(() => {
+    // Parse URL parameters
+    const params = new URLSearchParams(window.location.search);
+    const token = params.get('token');
+    setUrlParams({ token });
+
+    // Validate invitation if token exists
+    if (token) {
+      api.get(`/questions/validate-invitation/${token}`)
+        .then(res => {
+          setInvitationValid(true);
+          setCandidateName(res.data.candidate_name);
+          // Auto-login or create session for candidate
+          localStorage.setItem('candidate_name', res.data.candidate_name);
+        })
+        .catch(err => {
+          console.error("Invitation validation failed", err);
+          setInvitationValid(false);
+          alert("Invalid or expired invitation link. Please contact the recruiter.");
+        });
+    }
+
     // Fetch questions
     api.get(`/questions/${encodeURIComponent(domain)}`)
        .then(res => setQuestions(res.data))
@@ -123,7 +147,13 @@ const Interview = () => {
         
         <div style={{ textAlign: 'center' }}>
           <h2 style={{ fontSize: '2rem', color: 'var(--accent-primary)' }}>{domain} Interview</h2>
-          <p className="text-muted">Domain Expertise Simulation</p>
+          {invitationValid ? (
+            <p className="text-muted">Welcome, {candidateName}! (Invited Candidate)</p>
+          ) : urlParams.token ? (
+            <p className="text-muted" style={{ color: 'var(--error)' }}>Invalid Invitation</p>
+          ) : (
+            <p className="text-muted">Domain Expertise Simulation</p>
+          )}
         </div>
 
         <div className="glass-panel" style={{ width: '100%', maxWidth: '800px', padding: '1rem', position: 'relative' }}>

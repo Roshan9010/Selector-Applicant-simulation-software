@@ -1,7 +1,7 @@
-from sqlalchemy import Column, Integer, String, Float, ForeignKey, DateTime
+from sqlalchemy import Column, Integer, String, Float, ForeignKey, DateTime, Boolean
 from sqlalchemy.orm import relationship
 from sqlalchemy.sql import func
-from database import Base
+from backend.database import Base
 
 class User(Base):
     __tablename__ = "users"
@@ -34,3 +34,16 @@ class Report(Base):
     created_at = Column(DateTime(timezone=True), server_default=func.now())
 
     user = relationship("User", back_populates="reports")
+
+class InterviewInvitation(Base):
+    __tablename__ = "interview_invitations"
+
+    id = Column(Integer, primary_key=True, index=True)
+    candidate_email = Column(String, index=True)
+    candidate_name = Column(String)
+    domain = Column(String)
+    invitation_token = Column(String, unique=True, index=True)
+    is_completed = Column(Boolean, default=False)
+    is_opened = Column(Boolean, default=False)  # Track if link was opened
+    opened_at = Column(DateTime(timezone=True), nullable=True)  # When opened
+    created_at = Column(DateTime(timezone=True), server_default=func.now())

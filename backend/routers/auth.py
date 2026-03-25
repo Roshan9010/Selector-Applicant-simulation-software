@@ -1,10 +1,15 @@
+import logging
+import sys
 from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy.orm import Session
-from database import get_db
-import models
-import schemas
-from auth_utils import get_password_hash, verify_password, create_access_token
+from backend.database import get_db
+from backend import models
+from backend import schemas
+from backend.auth_utils import get_password_hash, verify_password, create_access_token
 from fastapi.security import OAuth2PasswordRequestForm
+
+logger = logging.getLogger("backend.routers.auth")
+logger.debug("backend.routers.auth: import start")
 
 router = APIRouter(prefix="/auth", tags=["auth"])
 

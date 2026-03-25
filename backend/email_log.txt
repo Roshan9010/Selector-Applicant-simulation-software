@@ -1,0 +1,33 @@
+---
+To: local.test2@example.com
+Subject: Interview Invitation - Go
+
+Hi Local Test2,
+
+You have been invited to a Go interview. Start here: http://localhost:5173/interview/Go?token=0cfa5bbc-67a1-444e-a957-e767070028a7
+
+Best regards,
+Recruiter
+---
+---
+To: kmdroshan54@gmail.com
+Subject: Interview Invitation - Python
+
+Hi resume (3),
+
+You have been invited to a Python interview. Start here: http://localhost:5173/interview/Python?token=41874cfb-2f3e-4162-bb61-73c85f741881
+
+Best regards,
+Recruiter
+---
+---
+To: amirindersingh1234@gmail.com
+Subject: Interview Invitation - Python
+
+Hi Amrinder Business Analyst,
+
+You have been invited to a Python interview. Start here: http://localhost:5173/interview/Python?token=3df8b8cc-33bf-4fa1-96e5-098d4fe1985f
+
+Best regards,
+Recruiter
+---

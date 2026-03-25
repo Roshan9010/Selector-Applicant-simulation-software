@@ -14,3 +14,5 @@ pandas
 PyPDF2
 python-docx
 scikit-learn
+alembic
+openai

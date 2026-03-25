@@ -1,17 +1,21 @@
+import logging
 from fastapi import APIRouter, Depends, UploadFile, File, Form
 from sqlalchemy.orm import Session
-from database import get_db
-import models
+from backend.database import get_db
+from backend import models
 import os
 import shutil
 import asyncio
 import logging
 from fastapi.concurrency import run_in_threadpool
-import schemas
+from backend import schemas
 
 # Setup logging
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
+
+logger = logging.getLogger("backend.routers.analysis")
+logger.debug("backend.routers.analysis: import start")
 
 router = APIRouter(prefix="/analyze", tags=["analysis"])
 
@@ -37,7 +41,7 @@ async def analyze_interview(
         with open(audio_path, "wb") as buffer:
             shutil.copyfileobj(audio_file.file, buffer)
 
-        from ml_services import analyze_video_file, analyze_audio_file
+        from backend.ml_services import analyze_video_file, analyze_audio_file
         
         # Run heavy ML analysis in a threadpool to avoid blocking the event loop
         logger.info("Running ML analysis tasks...")
